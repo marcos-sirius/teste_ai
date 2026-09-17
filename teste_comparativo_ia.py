@@ -57,7 +57,12 @@ MODELOS = {
 
 
 def gerar_com_modelo(nome_modelo: str, config_modelo: dict, tema: str) -> list:
-    cliente = OpenAI(api_key=config_modelo["api_key"], base_url=config_modelo["base_url"])
+    # timeout curto: se a API travar sem responder nem dar erro (como
+    # aconteceu numa execução real), desiste em 60s em vez de ficar
+    # pendurado por horas até o próprio GitHub Actions matar o job.
+    cliente = OpenAI(
+        api_key=config_modelo["api_key"], base_url=config_modelo["base_url"], timeout=60.0,
+    )
     prompt = montar_prompt(BANCA, NIVEL, tema, QTD_POR_TEMA, evitar=None)
     # response_format=json_object exige que a palavra "JSON" apareça em
     # algum lugar da mensagem — nosso prompt real não menciona isso
@@ -67,7 +72,7 @@ def gerar_com_modelo(nome_modelo: str, config_modelo: dict, tema: str) -> list:
         "contendo a lista de questões geradas."
     )
 
-    kwargs_limite = {config_modelo["parametro_limite"]: 4000}
+    kwargs_limite = {config_modelo["parametro_limite"]: 12000}
     resposta = cliente.chat.completions.create(
         model=nome_modelo,
         messages=[{"role": "user", "content": prompt_com_instrucao_json}],
@@ -75,6 +80,11 @@ def gerar_com_modelo(nome_modelo: str, config_modelo: dict, tema: str) -> list:
         **kwargs_limite,
     )
     texto = resposta.choices[0].message.content
+    motivo_parada = resposta.choices[0].finish_reason
+    if motivo_parada == "length":
+        print(f"    ⚠️ [{nome_modelo}] parou por estourar o limite de tokens (finish_reason=length)")
+    if not texto:
+        raise ValueError(f"Resposta vazia (finish_reason={motivo_parada})")
     dados = json.loads(texto)
     return dados.get("questoes", [])
 
