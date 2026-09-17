@@ -57,12 +57,7 @@ MODELOS = {
 
 
 def gerar_com_modelo(nome_modelo: str, config_modelo: dict, tema: str) -> list:
-    # timeout curto: se a API travar sem responder nem dar erro (como
-    # aconteceu numa execução real), desiste em 60s em vez de ficar
-    # pendurado por horas até o próprio GitHub Actions matar o job.
-    cliente = OpenAI(
-        api_key=config_modelo["api_key"], base_url=config_modelo["base_url"], timeout=60.0,
-    )
+    cliente = OpenAI(api_key=config_modelo["api_key"], base_url=config_modelo["base_url"])
     prompt = montar_prompt(BANCA, NIVEL, tema, QTD_POR_TEMA, evitar=None)
     # response_format=json_object exige que a palavra "JSON" apareça em
     # algum lugar da mensagem — nosso prompt real não menciona isso
