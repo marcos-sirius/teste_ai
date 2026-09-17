@@ -1,5 +1,5 @@
 """
-Comparação lado a lado: gpt-5.6-terra (OpenAI) vs DeepSeek, usando o MESMO
+Comparação lado a lado: gpt-5.6-terra (OpenAI) vs DeepSeek Reasoner/V4-Pro, usando o MESMO
 prompt que o app já usa de verdade (ia_gerador.montar_prompt) — pra isolar
 a variável "qual modelo" e não misturar com "prompt diferente".
 
@@ -47,21 +47,26 @@ MODELOS = {
         "api_key": os.environ.get("OPENAI_API_KEY"),
         "base_url": None,  # padrão da OpenAI
         "parametro_limite": "max_completion_tokens",  # modelos novos da OpenAI exigem esse nome
+        "max_tokens": 12000,
+        "timeout": 60.0,
     },
-    "deepseek-flash": {
+    "deepseek-reasoner": {
         "api_key": os.environ.get("DEEPSEEK_API_KEY"),
         "base_url": "https://api.deepseek.com",
         "parametro_limite": "max_tokens",
+        # Modelos com raciocínio encadeado geram tokens de reflexão (thought tokens)
+        # antes da saída final, exigindo uma margem maior de tokens e timeout ampliado.
+        "max_tokens": 16000,
+        "timeout": 120.0,
     },
 }
 
 
 def gerar_com_modelo(nome_modelo: str, config_modelo: dict, tema: str) -> list:
-    # timeout curto: se a API travar sem responder nem dar erro (como
-    # aconteceu numa execução real), desiste em 60s em vez de ficar
-    # pendurado por horas até o próprio GitHub Actions matar o job.
     cliente = OpenAI(
-        api_key=config_modelo["api_key"], base_url=config_modelo["base_url"], timeout=60.0,
+        api_key=config_modelo["api_key"],
+        base_url=config_modelo["base_url"],
+        timeout=config_modelo.get("timeout", 60.0),
     )
     prompt = montar_prompt(BANCA, NIVEL, tema, QTD_POR_TEMA, evitar=None)
     # response_format=json_object exige que a palavra "JSON" apareça em
@@ -72,7 +77,7 @@ def gerar_com_modelo(nome_modelo: str, config_modelo: dict, tema: str) -> list:
         "contendo a lista de questões geradas."
     )
 
-    kwargs_limite = {config_modelo["parametro_limite"]: 12000}
+    kwargs_limite = {config_modelo["parametro_limite"]: config_modelo.get("max_tokens", 12000)}
     resposta = cliente.chat.completions.create(
         model=nome_modelo,
         messages=[{"role": "user", "content": prompt_com_instrucao_json}],
