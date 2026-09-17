@@ -50,7 +50,7 @@ MODELOS = {
         "max_tokens": 12000,
         "timeout": 60.0,
     },
-    "deepseek-reasoner": {
+    "deepseek-v4-pro": {
         "api_key": os.environ.get("DEEPSEEK_API_KEY"),
         "base_url": "https://api.deepseek.com",
         "parametro_limite": "max_tokens",
